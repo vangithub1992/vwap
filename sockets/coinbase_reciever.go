@@ -15,7 +15,6 @@ const (
 	unsubscribe = "unsubscribe"
 
 	//response messages types
-	match         = "match"
 	heartbeat     = "heartbeat"
 	subscriptions = "subscriptions"
 )

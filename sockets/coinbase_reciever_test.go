@@ -34,7 +34,7 @@ func TestCoinBaseReciever_Connect(t *testing.T) {
 		msgType, mBody, err := conn.ReadMessage()
 		if err != nil {
 			log.Printf("[Test]Error during read message: %s", err)
-			continue
+			t.Fail()
 		}
 		log.Printf("[TEST]Message type %d, body: %s", msgType, mBody)
 	}
