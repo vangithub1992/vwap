@@ -2,6 +2,7 @@
 .DS_Store
 .idea
 vendor
+awesomeProject
 # Binaries for programs and plugins
 *.exe
 *.exe~
