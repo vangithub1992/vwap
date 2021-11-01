@@ -1,8 +1,8 @@
 package storages
 
 import (
-	"awesomePeoject/configs"
-	"awesomePeoject/sockets"
+	"awesomeProject/configs"
+	"awesomeProject/sockets"
 	"context"
 	"log"
 	"strconv"

@@ -1,7 +1,7 @@
 package sockets
 
 import (
-	"awesomePeoject/configs"
+	"awesomeProject/configs"
 	"context"
 	"encoding/json"
 	"github.com/gorilla/websocket"

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"awesomePeoject/configs"
-	"awesomePeoject/sockets"
-	"awesomePeoject/storages"
+	"awesomeProject/configs"
+	"awesomeProject/sockets"
+	"awesomeProject/storages"
 	"bytes"
 	"context"
 	"flag"
