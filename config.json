@@ -1,0 +1,7 @@
+{
+  "conn_config": {
+    "socket_url": "wss://ws-feed.exchange.coinbase.com"
+  },
+  "trading_pairs": ["BTC-USD","ETH-USD", "ETH-BTC"],
+  "channels": ["matches", "heartbeat"]
+}
