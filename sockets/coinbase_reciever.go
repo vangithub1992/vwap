@@ -63,8 +63,8 @@ type CoinBaseReciever struct {
 	cancelF      context.CancelFunc
 }
 
-func NewCoinBaseReciever(ctx context.Context, sentChan chan<- *MatchMessage, c *configs.Config) *CoinBaseReciever {
-	cbrCtx, cancelF := context.WithCancel(ctx)
+func NewCoinBaseReciever(parentCtx context.Context, sentChan chan<- *MatchMessage, c *configs.Config) *CoinBaseReciever {
+	cbrCtx, cancelF := context.WithCancel(parentCtx)
 	cbr := &CoinBaseReciever{config: c, ctx: cbrCtx, cancelF: cancelF, messagesChan: sentChan}
 
 	return cbr

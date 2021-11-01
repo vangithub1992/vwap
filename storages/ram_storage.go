@@ -21,10 +21,6 @@ const (
 	errInterfaceType  = "[RamStorage]Error setting type for interface"
 )
 
-type Vwap struct {
-	Products *sync.Map
-}
-
 type RamStorage struct {
 	elem         *sync.Map
 	messages     <-chan *sockets.MatchMessage
@@ -35,8 +31,8 @@ type RamStorage struct {
 	vwapMessages chan<- *Vwap
 }
 
-func NewRamStorage(ctx context.Context, mChan <-chan *sockets.MatchMessage, c *configs.Config, receiveChan chan<- *Vwap) *RamStorage {
-	ramCtx, cancelF := context.WithCancel(ctx)
+func NewRamStorage(parentCtx context.Context, mChan <-chan *sockets.MatchMessage, c *configs.Config, receiveChan chan<- *Vwap) *RamStorage {
+	ramCtx, cancelF := context.WithCancel(parentCtx)
 	r := &RamStorage{
 		elem:     &sync.Map{},
 		messages: mChan,
@@ -114,14 +110,4 @@ out:
 			continue
 		}
 	}
-}
-
-func (v *Vwap) Set(key string, value float64) {
-	v.Products.Store(key, value)
-}
-
-func (v *Vwap) Get(key string) (float64, bool) {
-	val, ok := v.Products.Load(key)
-
-	return val.(float64), ok
 }

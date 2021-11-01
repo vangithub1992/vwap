@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	cFile = flag.String("c", "/Users/isemenov/go/src/awesomeProject/config.json", "config file path. default is ./config.json")
+	cFile = flag.String("c", "./config.json", "config file path. default is ./config.json")
 )
 
 func init() {
@@ -27,7 +27,6 @@ func init() {
 }
 
 func main() {
-
 	c, err := configs.ReadConfig(*cFile)
 	if err != nil {
 		panic(err)
