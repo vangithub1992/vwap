@@ -1,9 +1,6 @@
 package main
 
 import (
-	"awesomeProject/configs"
-	"awesomeProject/sockets"
-	"awesomeProject/storages"
 	"bytes"
 	"context"
 	"flag"
@@ -12,6 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"vwap/configs"
+	"vwap/sockets"
+	"vwap/storages"
 )
 
 const (
@@ -27,20 +27,32 @@ func init() {
 }
 
 func main() {
+	var storage storages.Storage
+	var receiver sockets.SocketClient
+
 	c, err := configs.ReadConfig(*cFile)
 	if err != nil {
 		panic(err)
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	dataPointsChan := make(chan *sockets.MatchMessage)
+	storageCtx, storageCancel := context.WithCancel(ctx)
+	socketCtx, socketCancel := context.WithCancel(ctx)
+
+	dataPointsChan := make(chan *sockets.FullMessage)
 	vwapCHan := make(chan *storages.Vwap)
-	reciever := sockets.NewCoinBaseReciever(ctx, dataPointsChan, c)
-	_ = storages.NewRamStorage(ctx, dataPointsChan, c, vwapCHan)
+
+	storage = storages.NewRamStorage(storageCtx, dataPointsChan, c, vwapCHan)
+	receiver = sockets.NewCoinBaseReciever(socketCtx, dataPointsChan, c)
+
+	go storage.Listen()
 
 	go func() {
-		err := reciever.Connect()
+		err := receiver.Connect()
 		if err != nil {
 			log.Printf("[Main]Error processing message %s", err)
+			storageCancel()
+			socketCancel()
 			cancel()
 			os.Exit(1)
 		}
@@ -60,6 +72,8 @@ out:
 			fmt.Println(b.String())
 		case s := <-sigc:
 			log.Printf("[Main]Caught signal %s. Shutting down", s)
+			storageCancel()
+			socketCancel()
 			cancel()
 			break out
 		default:

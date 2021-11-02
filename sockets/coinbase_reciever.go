@@ -1,12 +1,12 @@
 package sockets
 
 import (
-	"awesomeProject/configs"
 	"context"
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
 	"time"
+	"vwap/configs"
 )
 
 const (
@@ -14,9 +14,8 @@ const (
 	subscribe   = "subscribe"
 	unsubscribe = "unsubscribe"
 
-	//response messages types
-	heartbeat     = "heartbeat"
-	subscriptions = "subscriptions"
+	//response messages we have interest in
+	match = "match"
 )
 
 const zero = 0
@@ -33,20 +32,24 @@ const (
 	wsUnsubscribeErr = "[WS]Error unsubscribe: %s"
 )
 
+// requestMessage is a message to be sent into socket connection
 type requestMessage struct {
-	Type       string   `json:"type"`
+	// Type is actual message type (e.g. `subscribe`/`unsubscribe`)
+	Type string `json:"type"`
+	// ProductIds is a list of Trading pairs we looking for
 	ProductIds []string `json:"product_ids"`
-	Channels   []string `json:"channels"`
+	// Channels is a list of channels where we'll read information from coinbase
+	Channels []string `json:"channels"`
 }
 
-type MatchMessage struct {
-	LastTradeId  int    `json:"last_trade_id,omitempty"`
-	TradeId      int    `json:"trade_id,omitempty"`
-	MakerOrderId string `json:"maker_order_id,omitempty"`
-	TakerOrderId string `json:"taker_order_id,omitempty"`
-	Side         string `json:"side,omitempty"`
-	Size         string `json:"size,omitempty"`
-	Price        string `json:"price,omitempty"`
+// FullMessage represents merged data from match and heartbeat channels
+// example Match message {"type":"match","trade_id":174742474,"maker_order_id":"924c16b5-4163-43f7-98cd-cc77795cbea3","taker_order_id":"1e12f2d5-a2e5-4262-a578-c2f5390288d6","side":"buy","size":"0.02100634","price":"4450.09","product_id":"ETH-USD","sequence":22201266131,"time":"2021-11-02T11:30:50.808413Z"}
+// example HeartBeat message {"type":"heartbeat","last_trade_id":23080426,"product_id":"ETH-BTC","sequence":4613181181,"time":"2021-11-02T11:30:50.710150Z"}
+type FullMessage struct {
+	//Size represent quantity of trading match
+	Size string `json:"size,omitempty"`
+	// Price represent sum of buying
+	Price string `json:"price,omitempty"`
 	//all fields below presents in both heartbeat/match messages
 	Type      string    `json:"type"`
 	ProductId string    `json:"product_id"`
@@ -56,15 +59,13 @@ type MatchMessage struct {
 
 type CoinBaseReciever struct {
 	config       *configs.Config
-	messagesChan chan<- *MatchMessage
+	messagesChan chan<- *FullMessage
 	conn         *websocket.Conn
 	ctx          context.Context
-	cancelF      context.CancelFunc
 }
 
-func NewCoinBaseReciever(parentCtx context.Context, sentChan chan<- *MatchMessage, c *configs.Config) *CoinBaseReciever {
-	cbrCtx, cancelF := context.WithCancel(parentCtx)
-	cbr := &CoinBaseReciever{config: c, ctx: cbrCtx, cancelF: cancelF, messagesChan: sentChan}
+func NewCoinBaseReciever(cbrCtx context.Context, sentChan chan<- *FullMessage, c *configs.Config) *CoinBaseReciever {
+	cbr := &CoinBaseReciever{config: c, ctx: cbrCtx, messagesChan: sentChan}
 
 	return cbr
 }
@@ -76,11 +77,13 @@ func (cbr *CoinBaseReciever) Connect() (err error) {
 		log.Printf(jsonMarshallErr, err)
 		return err
 	}
+
 	cbr.conn, _, err = websocket.DefaultDialer.Dial(cbr.config.Conn.SocketUrl, nil)
 	if err != nil {
 		log.Printf(wsConnErr, err)
 		return err
 	}
+	//subscribing to channels and trading pairs from config file
 	if err := cbr.conn.WriteMessage(websocket.BinaryMessage, reqJson); err != nil {
 		log.Printf(wsSendErr, err)
 		return err
@@ -94,7 +97,9 @@ func (cbr *CoinBaseReciever) Connect() (err error) {
 	}(cbr.conn)
 
 	for {
-		m := &MatchMessage{}
+		m := &FullMessage{}
+		//reading message from socket connection.
+		//we don't have interest into message type
 		_, mBody, err := cbr.conn.ReadMessage()
 		if err != nil {
 			log.Printf(wsReadErr, err)
@@ -111,22 +116,26 @@ func (cbr *CoinBaseReciever) Connect() (err error) {
 			continue
 		}
 
-		if m.Type == heartbeat || m.Type == subscriptions {
+		if m.Type != match {
 			continue
 		}
-
+		//message passes all conditions and cen be send to storage
 		cbr.messagesChan <- m
 
 		select {
 		case <-cbr.ctx.Done():
+			//catch context done
 			m := cbr.getRequestMessage(unsubscribe)
-			j, _ := json.Marshal(m)
-
+			j, err := json.Marshal(m)
+			if err != nil {
+				log.Printf("[WS]Error marshalling json message: %s", err)
+			}
+			//unsubscribing from our trading pairs and channels
 			if err := cbr.conn.WriteMessage(websocket.BinaryMessage, j); err != nil {
 				log.Printf(wsUnsubscribeErr, err)
 				return err
 			}
-
+			//closing websocket connection
 			if err := cbr.conn.Close(); err != nil {
 				log.Printf(wsCloseConnErr, err)
 				return err
@@ -139,6 +148,7 @@ func (cbr *CoinBaseReciever) Connect() (err error) {
 	}
 }
 
+// getRequestMessage returns default message to subscribe/unsubscribe from channles
 func (cbr *CoinBaseReciever) getRequestMessage(mtype string) *requestMessage {
 	return &requestMessage{
 		Type:       mtype,

@@ -1,4 +1,4 @@
-module awesomeProject
+module vwap
 
 go 1.17
 
