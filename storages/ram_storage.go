@@ -88,12 +88,14 @@ func (r *RamStorage) updateStorageCalculateVWap(m *sockets.FullMessage) {
 			sizeSum += q
 			productMessages[i] = next
 		}
+		//now we need to add last new element
 		productMessages[elementsCount-one] = m
 		np, nq, err := getPriceAndSize(m)
 		if err != nil {
 			//we already logged this error in function
 			return
 		}
+		//added to vwap new last element
 		priceSum += np * nq
 		sizeSum += nq
 		newVwap = priceSum / sizeSum
